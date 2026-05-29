@@ -1,45 +1,79 @@
 import express from "express";
-import cors from "cors";
 import mongoose from "mongoose";
+import cors from "cors";
+import dotenv from "dotenv";
+import Todo from "./models/Todo.js";
+
+dotenv.config();
 
 const app = express();
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(
-  "mongodb+srv://username:password@cluster.mongodb.net/todoDB"
-);
-
-const Todo = mongoose.model(
-  "Todo",
-  new mongoose.Schema({
-    text: String,
+// MongoDB Connection
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log("MongoDB Connected");
   })
-);
+  .catch((error) => {
+    console.log(error);
+  });
 
+
+// GET ALL TODOS
 app.get("/todos", async (req, res) => {
-  const todos = await Todo.find();
+  try {
+    const todos = await Todo.find().sort({ createdAt: -1 });
 
-  res.json(todos);
+    res.json(todos);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
 });
 
+
+// ADD TODO
 app.post("/todos", async (req, res) => {
-  const todo = await Todo.create({
-    text: req.body.text,
-  });
+  try {
+    const newTodo = new Todo({
+      text: req.body.text,
+    });
 
-  res.json(todo);
+    const savedTodo = await newTodo.save();
+
+    res.status(201).json(savedTodo);
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
 });
 
+
+// DELETE TODO
 app.delete("/todos/:id", async (req, res) => {
-  await Todo.findByIdAndDelete(req.params.id);
+  try {
+    await Todo.findByIdAndDelete(req.params.id);
 
-  res.json({
-    message: "Deleted",
-  });
+    res.json({
+      message: "Todo deleted",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    });
+  }
 });
 
-app.listen(5000, () => {
-  console.log("Server Running");
+
+// SERVER
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
